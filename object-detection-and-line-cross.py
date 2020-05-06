@@ -189,11 +189,11 @@ class objectTracker:
             # assign ID to the object pairs based on assignment matrix
             for dbIdx, objIdx in combination:
                 if distance.cosine(objects[objIdx].feature, self.objectDB[dbIdx].feature)<self.similarityThreshold:
-                    objects[objIdx].id = self.objectDB[dbIdx].id                         # assign an ID
-                    self.objectDB[dbIdx].feature = objects[objIdx].feature               # update the feature vector in DB with the latest vector
-                    self.objectDB[dbIdx].time    = time.monotonic()                                   # update last found time
+                    objects[objIdx].id = self.objectDB[dbIdx].id                               # assign an ID
+                    self.objectDB[dbIdx].feature = objects[objIdx].feature                     # update the feature vector in DB with the latest vector (to make tracking easier)
+                    self.objectDB[dbIdx].time    = time.monotonic()                            # update last found time
                     xmin, ymin, xmax, ymax = objects[objIdx].pos
-                    self.objectDB[dbIdx].trajectory.append([(xmin+xmax)//2, (ymin+ymax)//2])   # position history for trajectory line
+                    self.objectDB[dbIdx].trajectory.append([(xmin+xmax)//2, (ymin+ymax)//2])   # record position history as trajectory
                     objects[objIdx].trajectory = self.objectDB[dbIdx].trajectory
 
         # Register the new objects which has no ID yet
