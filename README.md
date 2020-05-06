@@ -54,10 +54,7 @@ To install all the required Python modules you can use:
 Use `Model Downloader` to download the required models and convert the downloaded model into OpenVINO IR models with `Model Converter`.  
 ``` sh
 (Linux) python3 $INTEL_OPENVINO_DIR/deployment_tools/tools/model_downloader/downloader.py --list models.lst
-
-       
 (Win10) python "%INTEL_OPENVINO_DIR%\deployment_tools\tools\model_downloader\downloader.py" --list models.lst
-        python 
 ```
 
 ### 3. Run the demo app
