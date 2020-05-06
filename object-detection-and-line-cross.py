@@ -109,8 +109,8 @@ def checkLineCrosses(boundaryLines, objects):
         if len(traj)>1:
             p0 = traj[-2]
             p1 = traj[-1]
-            for i, line in enumerate(boundaryLines):
-                checkLineCross(boundaryLines[i], [p0[0],p0[1], p1[0],p1[1]])
+            for line in boundaryLines:
+                checkLineCross(line, [p0[0],p0[1], p1[0],p1[1]])
 
 
 #------------------------------------
@@ -122,13 +122,13 @@ class area:
 
 # Area intrusion check
 def checkAreaIntrusion(areas, objects):
-    for i, area in enumerate(areas):
-        areas[i].count = 0
+    for area in areas:
+        area.count = 0
         for obj in objects:
             p0 = (obj.pos[0]+obj.pos[2])//2
             p1 = (obj.pos[1]+obj.pos[3])//2
             if cv2.pointPolygonTest(area.contour, (p0, p1), False)>=0:
-                areas[i].count += 1
+                area.count += 1
 
 # Draw areas (polygons)
 def drawAreas(img, areas):
@@ -197,14 +197,14 @@ class objectTracker:
                     objects[objIdx].trajectory = self.objectDB[dbIdx].trajectory
 
         # Register the new objects which has no ID yet
-        for i, obj in enumerate(objects):
+        for obj in objects:
             if obj.id==-1:           # no similar objects is registred in feature_db
-                objects[i].id = self.objectid
+                obj.id = self.objectid
                 self.objectDB.append(obj)  # register a new feature to the db
                 self.objectDB[-1].time = time.monotonic()
                 xmin, ymin, xmax, ymax = obj.pos
                 self.objectDB[-1].trajectory = [[(xmin+xmax)//2, (ymin+ymax)//2]]  # position history for trajectory line
-                objects[i].trajectory = self.objectDB[-1].trajectory
+                obj.trajectory = self.objectDB[-1].trajectory
                 self.objectid+=1
 
     def drawTrajectory(self, img, objects):
