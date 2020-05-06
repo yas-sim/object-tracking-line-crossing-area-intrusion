@@ -323,8 +323,6 @@ def main():
             cv2.rectangle(outimg, (xmin, ymin), (xmax, ymax), color, 2)
             cv2.putText(outimg, 'ID='+str(id), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 1.0, color, 1)
 
-        time.sleep(0.05)
-
         cv2.imshow('image', outimg)
 
     cv2.destroyAllWindows()
