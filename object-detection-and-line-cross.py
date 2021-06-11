@@ -218,11 +218,7 @@ class objectTracker:
 
 # DL models for pedestrian detection and person re-identification
 model_det  = 'pedestrian-detection-adas-0002'
-model_reid = 'person-reidentification-retail-0031'
-
-# DL models for face detection and re-identification
-#model_det  = 'face-detection-adas-0001'
-#model_reid = 'face-reidentification-retail-0095'
+model_reid = 'person-reidentification-retail-0277'
 
 model_det  = 'intel/' + model_det  + '/FP16/' + model_det
 model_reid = 'intel/' + model_reid + '/FP16/' + model_reid
@@ -247,19 +243,19 @@ def main():
     ie = IECore()
 
     # Prep for face/pedestrian detection
-    net_det  = ie.read_network(model_det+'.xml', model_det+'.bin')   # model=pedestrian-detection-adas-0002
-    input_name_det  = next(iter(net_det.inputs))                     # Input blob name "data"
-    input_shape_det = net_det.inputs[input_name_det].shape           # [1,3,384,672]
-    out_name_det    = next(iter(net_det.outputs))                    # Output blob name "detection_out"
-    out_shape_det   = net_det.outputs[out_name_det].shape            # [ image_id, label, conf, xmin, ymin, xmax, ymax ]
+    net_det  = ie.read_network(model_det+'.xml', model_det+'.bin')           # model=pedestrian-detection-adas-0002
+    input_name_det  = next(iter(net_det.input_info))                         # Input blob name "data"
+    input_shape_det = net_det.input_info[input_name_det].tensor_desc.dims    # [1,3,384,672]
+    out_name_det    = next(iter(net_det.outputs))                            # Output blob name "detection_out"
+    out_shape_det   = net_det.outputs[out_name_det].shape                    # [ image_id, label, conf, xmin, ymin, xmax, ymax ]
     exec_net_det    = ie.load_network(net_det, 'CPU')
 
     # Preparation for face/pedestrian re-identification
-    net_reid = ie.read_network(model_reid+".xml", model_reid+".bin") # person-reidentificaton-retail-0079
-    input_name_reid  = next(iter(net_reid.inputs))                   # Input blob name "data"
-    input_shape_reid = net_reid.inputs[input_name_reid].shape        # [1,3,160,64]
-    out_name_reid    = next(iter(net_reid.outputs))                  # Output blob name "embd/dim_red/conv"
-    out_shape_reid   = net_reid.outputs[out_name_reid].shape         # [1,256,1,1]
+    net_reid = ie.read_network(model_reid+".xml", model_reid+".bin")         # person-reidentificaton-retail-0079
+    input_name_reid  = next(iter(net_reid.input_info))                       # Input blob name "data"
+    input_shape_reid = net_reid.input_info[input_name_reid].tensor_desc.dims # [1,3,160,64]
+    out_name_reid    = next(iter(net_reid.outputs))                          # Output blob name "embd/dim_red/conv"
+    out_shape_reid   = net_reid.outputs[out_name_reid].shape                 # [1,256,1,1]
     exec_net_reid    = ie.load_network(net_reid, 'CPU')
 
 

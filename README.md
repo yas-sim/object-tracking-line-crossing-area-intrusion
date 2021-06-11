@@ -20,10 +20,6 @@ The demo expects the following models in the Intermediate Representation (IR) fo
    * `pedestrian-detection-adas-0002`
    * `person-reidentification-retail-0031`
 
- * For face detection and re-identification 
-   * `face-detection-adas-0001`
-   * `face-reidentification-retail-0095`
-
 You can download these models from OpenVINO [Open Model Zoo](https://github.com/opencv/open_model_zoo).
 In the `models.lst` is the list of appropriate models for this demo that can be obtained via `Model downloader`.
 Please see more information about `Model downloader` [here](../../../tools/downloader/README.md).
@@ -32,7 +28,7 @@ Please see more information about `Model downloader` [here](../../../tools/downl
 
 
 ### 0. Prerequisites
-- **OpenVINO 2020.2**
+- **OpenVINO 2021.3**
   - If you haven't installed it, go to the OpenVINO web page and follow the [*Get Started*](https://software.intel.com/en-us/openvino-toolkit/documentation/get-started) guide to do it.  
 
 
@@ -69,7 +65,7 @@ The application draws the results on the screen.
 
 ## Tested Environment  
 - Windows 10 x64 1909 and Ubuntu 18.04 LTS  
-- Intel(r) Distribution of OpenVINO(tm) toolkit 2020.2  
+- Intel(r) Distribution of OpenVINO(tm) toolkit 2021.3  
 - Python 3.6.5 x64  
 
 ## See Also  
