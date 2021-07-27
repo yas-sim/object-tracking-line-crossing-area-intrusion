@@ -18,9 +18,9 @@ from openvino.inference_engine import IECore, IENetwork
 class audio_playback_bg:
     def __init__(self, wavfile:str, audio):   # audio = pyaudio object
         with wave.open(wavfile, 'rb') as wav:
-            if wav.getsampwidth() != 2:
+            if wav.getsampwidth() != 2:       # Checking bits/sampling (bytes/sampling)
                 raise RuntimeError("wav file {} does not have int16 format".format(wavfile))
-            if wav.getframerate() != 16000:
+            if wav.getframerate() != 16000:   # Checking sampling rate
                 raise RuntimeError("wav file {} does not have 16kHz sampling rate".format(wavfile))
             self.wavdata = wav.readframes(wav.getnframes())
 
@@ -30,8 +30,8 @@ class audio_playback_bg:
         self.play_flag = False
         self.play_buf = None            # Current playback buffer
         self.audio = audio              # PyAudio object
-        self.frame_size = 2048
-        self.sampling_rate = 16000
+        self.frame_size = 2048          # Audio frame size (samples / frame)
+        self.sampling_rate = 16000      # Audio sampling rate
         self.playback_stream = self.audio.open(format=pyaudio.paInt16, channels=1, rate=self.sampling_rate, output=True, frames_per_buffer=self.frame_size)
         self.thread.start()
 
