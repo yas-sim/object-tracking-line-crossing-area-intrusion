@@ -3,11 +3,13 @@ This program uses an object detection deep learning model and a re-identificatio
 To track the objects, the program extracts the feature vectors from the objects which consists of 256 FP values with the re-identification DL model. The program can identify which object is most similar to the objects in the previous frame and record the trajectory. The L2 norm (or the distance) of those feature vectores represents the similarity of the objects. This program uses cosine distance to check the similarity between the objects.  
 The line crossing check and area intrusion check are done by regular (meaning, non deep learning based) arithmetic algorithm.  
 The latest version playbacks sound when an event such as crossing a line or entering to an area happens.  
+You can learn how to use line-crossing and area intrusion function from simple test program (`test-line-cross-area-intrusion.py`)  
 
 このプログラムはディープラーニングの物体検出モデルと特徴抽出(re-identification)モデルを用いて、ムービーフレーム中のオブジェクトを検出し、追跡するプログラムです。プログラムは見つけたオブジェクトの軌跡を記録し、オブジェクトが定義された仮想ラインを超えたり定義されたエリアに侵入したことを検出します。ディープラーニングの推論には[Intel(r) Distribution of OpenVINO(tm) toolkit](https://software.intel.com/en-us/openvino-toolkit)を利用しています。  
 オブジェクトの追跡のために、プログラムは特徴抽出モデルを使用して見つけたオブジェクトから256個の浮動小数点数値からなる特徴ベクトルを抽出します。この特徴ベクトル同士のL2ノルム(=距離)がオブジェクト同士の類似度を表します。このプログラムではノルムの計算にコサイン距離を使用しています。  
 ラインクロスとエリア侵入の判定には通常の(ディープラーニングベースではない)数学的アルゴリズムを使用しています。  
 最新版はラインクロスしたりエリア侵入したりなどのイベント発生時にオーディオを再生します。  
+コードを簡素化したテストプログラムも追加しました。ライン交差やエリア侵入判定関数の使い方などを学ぶことが可能です。(`test-line-cross-area-intrusion.py`)  
 
 ### Object Tracking and Line Crossing Demo
 ![object-track](./resources/object-track.gif)
@@ -63,6 +65,12 @@ Use `Model Downloader` to download the required models and convert the downloade
 
 ## Demo Output  
 The application draws the results on the screen.
+
+
+## Simple test program
+`test-line-cross-area-intrusion.py` is a simple test program for line-crossing and area-intrusion detection. You can move mouse cursor to test how it works.  
+![test-prog](./resources/test-program.png)  
+
 
 ## Tested Environment  
 - Windows 10 x64 1909 and Ubuntu 18.04 LTS  
