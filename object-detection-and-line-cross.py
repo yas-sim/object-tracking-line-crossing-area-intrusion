@@ -10,7 +10,7 @@ from munkres import Munkres               # Hungarian algorithm for ID assignmen
 from openvino.inference_engine import IECore, IENetwork
 
 from line_boundary_check import *
-from bg_audio_playback import *
+from audio_playback_bg import *
 
 
 # ffmpeg -i input.mp3 -ac 1 -ar 16000 -acodec pcm_s16le output.wav
