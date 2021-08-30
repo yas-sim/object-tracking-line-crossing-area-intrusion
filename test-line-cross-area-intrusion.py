@@ -7,12 +7,12 @@ from line_boundary_check import *
 
 # ----------------------------------------------------------------------------
 
-g_mouse_pos      = (0,0)
+g_mouse_pos      = [0 ,0]
 
 # Mouse event handler
 def onMouse(event, x, y, flags, param):
     global g_mouse_pos
-    g_mouse_pos = (x, y)
+    g_mouse_pos = [x, y]
 
 # ----------------------------------------------------------------------------
 
@@ -35,6 +35,8 @@ def drawBoundaryLine(img, line):
     cv2.line(img, (x1, y1), (x2, y2), line.color, line.lineThinkness)
     cv2.putText(img, str(line.count1), (x1, y1), cv2.FONT_HERSHEY_PLAIN, line.textSize, line.textColor, line.textThinkness)
     cv2.putText(img, str(line.count2), (x2, y2), cv2.FONT_HERSHEY_PLAIN, line.textSize, line.textColor, line.textThinkness)
+    cv2.drawMarker(img, (x1, y1),line.color, cv2.MARKER_TRIANGLE_UP, 16, 4)
+    cv2.drawMarker(img, (x2, y2),line.color, cv2.MARKER_TILTED_CROSS, 16, 4)
 
 # Draw multiple boundary lines
 def drawBoundaryLines(img, boundaryLines):
@@ -104,22 +106,26 @@ def main():
 
     cv2.namedWindow('test')
     cv2.setMouseCallback('test', onMouse)
-    prev_mouse_pos = (0, 0)
+    prev_mouse_pos = [0, 0]
 
-    img_line = np.zeros((600, 800, 3), dtype=np.uint8)
+
+    trace = []
+    trace_length = 25
 
     key = -1
     while key != 27:        # ESC key
-        img_osd = np.zeros((600, 800, 3), dtype=np.uint8)
+        img = np.zeros((600, 800, 3), dtype=np.uint8)
         for line in boundaryLines:
             checkLineCross(line, (prev_mouse_pos, g_mouse_pos))
-        drawBoundaryLines(img_osd, boundaryLines)
+        drawBoundaryLines(img, boundaryLines)
         for area in areas:
             checkAreaIntrusion(area, (g_mouse_pos,))
-        drawAreas(img_osd, areas)
-        cv2.line(img_line, prev_mouse_pos, g_mouse_pos, (255,0,0), 2, cv2.LINE_AA)
+        drawAreas(img, areas)
+        trace.append(g_mouse_pos)
+        if len(trace)>trace_length:
+            trace = trace[-trace_length:]
+        cv2.polylines(img, np.array([trace], dtype=np.int32), False, (255,255,0), 1, cv2.LINE_AA)
         prev_mouse_pos = g_mouse_pos
-        img = img_osd | img_line
         cv2.imshow('test', img)
         key = cv2.waitKey(50)
 

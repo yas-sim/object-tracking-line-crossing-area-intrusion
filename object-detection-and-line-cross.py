@@ -46,6 +46,8 @@ def drawBoundaryLine(img, line):
     cv2.line(img, (x1, y1), (x2, y2), line.color, line.lineThinkness)
     cv2.putText(img, str(line.count1), (x1, y1), cv2.FONT_HERSHEY_PLAIN, line.textSize, line.textColor, line.textThinkness)
     cv2.putText(img, str(line.count2), (x2, y2), cv2.FONT_HERSHEY_PLAIN, line.textSize, line.textColor, line.textThinkness)
+    cv2.drawMarker(img, (x1, y1),line.color, cv2.MARKER_TRIANGLE_UP, 16, 4)
+    cv2.drawMarker(img, (x2, y2),line.color, cv2.MARKER_TILTED_CROSS, 16, 4)
 
 # Draw multiple boundary lines
 def drawBoundaryLines(img, boundaryLines):
@@ -261,59 +263,61 @@ def main():
     #'''
 
     tracker = objectTracker()
+    try:
+        while cv2.waitKey(1)!=27:           # 27 == ESC
+            ret, image = cap.read()
+            if ret==False:
+                del cap
+                cap = cv2.VideoCapture(infile)
+                continue
+            inBlob = cv2.resize(image, (input_shape_det[_W], input_shape_det[_H]))
+            inBlob = inBlob.transpose((2, 0, 1))
+            inBlob = inBlob.reshape(input_shape_det)
+            detObj = exec_net_det.infer(inputs={input_name_det: inBlob})     # [1,1,200,7]
+            detObj = detObj[out_name_det][0].reshape((200,7))
+    
+            objects = []
+            for obj in detObj:                # obj = [ image_id, label, conf, xmin, ymin, xmax, ymax ]
+                if obj[2] > 0.75:             # Confidence > 75% 
+                    xmin = abs(int(obj[3] * image.shape[1]))
+                    ymin = abs(int(obj[4] * image.shape[0]))
+                    xmax = abs(int(obj[5] * image.shape[1]))
+                    ymax = abs(int(obj[6] * image.shape[0]))
+                    class_id = int(obj[1])
 
-    while cv2.waitKey(1)!=27:           # 27 == ESC
-        ret, image = cap.read()
-        if ret==False:
-            del cap
-            cap = cv2.VideoCapture(infile)
-            continue
-        inBlob = cv2.resize(image, (input_shape_det[_W], input_shape_det[_H]))
-        inBlob = inBlob.transpose((2, 0, 1))
-        inBlob = inBlob.reshape(input_shape_det)
-        detObj = exec_net_det.infer(inputs={input_name_det: inBlob})     # [1,1,200,7]
-        detObj = detObj[out_name_det][0].reshape((200,7))
- 
-        objects = []
-        for obj in detObj:                # obj = [ image_id, label, conf, xmin, ymin, xmax, ymax ]
-            if obj[2] > 0.75:             # Confidence > 75% 
-                xmin = abs(int(obj[3] * image.shape[1]))
-                ymin = abs(int(obj[4] * image.shape[0]))
-                xmax = abs(int(obj[5] * image.shape[1]))
-                ymax = abs(int(obj[6] * image.shape[0]))
-                class_id = int(obj[1])
+                    obj_img=image[ymin:ymax,xmin:xmax].copy()             # Crop the found object
 
-                obj_img=image[ymin:ymax,xmin:xmax].copy()             # Crop the found object
+                    # Obtain feature vector of the detected object using re-identification model
+                    inBlob = cv2.resize(obj_img, (input_shape_reid[_W], input_shape_reid[_H]))
+                    inBlob = inBlob.transpose((2, 0, 1))
+                    inBlob = inBlob.reshape(input_shape_reid)
+                    featVec = exec_net_reid.infer(inputs={input_name_reid: inBlob})
+                    featVec = featVec[out_name_reid][0].reshape((256))
+                    objects.append(object([xmin,ymin, xmax,ymax], featVec, -1))
 
-                # Obtain feature vector of the detected object using re-identification model
-                inBlob = cv2.resize(obj_img, (input_shape_reid[_W], input_shape_reid[_H]))
-                inBlob = inBlob.transpose((2, 0, 1))
-                inBlob = inBlob.reshape(input_shape_reid)
-                featVec = exec_net_reid.infer(inputs={input_name_reid: inBlob})
-                featVec = featVec[out_name_reid][0].reshape((256))
-                objects.append(object([xmin,ymin, xmax,ymax], featVec, -1))
+            outimg = image.copy()
 
-        outimg = image.copy()
+            tracker.trackObjects(objects)
+            tracker.evictTimeoutObjectFromDB()
+            tracker.drawTrajectory(outimg, objects)
 
-        tracker.trackObjects(objects)
-        tracker.evictTimeoutObjectFromDB()
-        tracker.drawTrajectory(outimg, objects)
+            checkLineCrosses(boundaryLines, objects)
+            drawBoundaryLines(outimg, boundaryLines)
 
-        checkLineCrosses(boundaryLines, objects)
-        drawBoundaryLines(outimg, boundaryLines)
+            checkAreaIntrusion(areas, objects)
+            drawAreas(outimg, areas)
 
-        checkAreaIntrusion(areas, objects)
-        drawAreas(outimg, areas)
+            # Draw bounding boxes, IDs and trajectory
+            for obj in objects:
+                id = obj.id
+                color = ( (((~id)<<6) & 0x100)-1, (((~id)<<7) & 0x0100)-1, (((~id)<<8) & 0x0100)-1 )
+                xmin, ymin, xmax, ymax = obj.pos
+                cv2.rectangle(outimg, (xmin, ymin), (xmax, ymax), color, 2)
+                cv2.putText(outimg, 'ID='+str(id), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 1.0, color, 1)
 
-        # Draw bounding boxes, IDs and trajectory
-        for obj in objects:
-            id = obj.id
-            color = ( (((~id)<<6) & 0x100)-1, (((~id)<<7) & 0x0100)-1, (((~id)<<8) & 0x0100)-1 )
-            xmin, ymin, xmax, ymax = obj.pos
-            cv2.rectangle(outimg, (xmin, ymin), (xmax, ymax), color, 2)
-            cv2.putText(outimg, 'ID='+str(id), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 1.0, color, 1)
-
-        cv2.imshow('image', outimg)
+            cv2.imshow('image', outimg)
+    except KeyboardInterrupt:
+        pass
 
     cv2.destroyAllWindows()
     if audio_enable_flag:
