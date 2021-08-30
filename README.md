@@ -72,6 +72,10 @@ The application draws the results on the screen.
 ![test-prog](./resources/test-program.png)  
 
 
+## Coordinates checker
+You can utilize [`coordinates-checker`](https://github.com/yas-sim/coordinates-checker) to get the coordinates of point of interest to define boundary lines and area polygons.  
+`python coordinates-checker\coordinates-checker.py [image.jpg / movie.mp4 / 0 ]`  
+
 ## Tested Environment  
 - Windows 10 x64 1909 and Ubuntu 18.04 LTS  
 - Intel(r) Distribution of OpenVINO(tm) toolkit 2021.3  
