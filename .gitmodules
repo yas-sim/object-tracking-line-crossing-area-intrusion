@@ -1,0 +1,3 @@
+[submodule "coordinates-checker"]
+	path = coordinates-checker
+	url = https://github.com/yas-sim/coordinates-checker
