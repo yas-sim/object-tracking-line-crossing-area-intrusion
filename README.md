@@ -73,7 +73,7 @@ The application draws the results on the screen.
 
 
 ## Coordinates checker
-You can utilize [`coordinates-checker`](https://github.com/yas-sim/coordinates-checker) to get the coordinates of point of interest to define boundary lines and area polygons. The `coordinates-checker` is also included in this project as a submodule.    
+You can utilize `coordinates-checker` to get the coordinates of point of interest to define boundary lines and area polygons. The `coordinates-checker` is also included in this project as a submodule. See [coordinates-checker](https://github.com/yas-sim/coordinates-checker) GitHub repo for details.     
 `python coordinates-checker\coordinates-checker.py [image.jpg / movie.mp4 / 0 ]`  
 
 ## Tested Environment  
