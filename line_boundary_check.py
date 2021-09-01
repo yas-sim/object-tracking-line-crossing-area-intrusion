@@ -29,16 +29,16 @@ def checkIntersect(p1, p2, p3, p4):
   td2 = (p3[0] - p4[0]) * (p2[1] - p3[1]) + (p3[1] - p4[1]) * (p3[0] - p2[0])
   return tc1*tc2<0 and td1*td2<0
 
-# line(point1)-(point2)
 # convert a line to a vector
+# line(point1)-(point2)
 def line_vectorize(point1, point2):
   a = point2[0]-point1[0]
   b = point2[1]-point1[1]
   return [a,b]
 
+# Calculate the angle made by two line segments - 線分同士が交差する角度を計算
 # point = (x,y)
 # line1(point1)-(point2), line2(point3)-(point4)
-# Calculate the angle made by two line segments - 線分同士が交差する角度を計算
 def calcVectorAngle( point1, point2, point3, point4 ):
   u = np.array(line_vectorize(point1, point2))
   v = np.array(line_vectorize(point3, point4))
@@ -51,16 +51,16 @@ def calcVectorAngle( point1, point2, point3, point4 ):
   else:
     return 360-a
 
+# Test whether the test_point is in the polygon or not - 指定の点がポリゴン内に含まれるかどうかを判定
 # test_point = (x,y)
 # polygon = collection of points  [ (x0,y0), (x1,y1), (x2,y2) ... ]
-# Test whether the test_point is in the polygon or not - 指定の点がポリゴン内に含まれるかどうかを判定
 def pointPolygonTest(polygon, test_point):
-    if len(polygon)<1:
+    if len(polygon)<3:
         return False
     prev_point = polygon[-1]                                                                                 # Use the last point as the starting point to close the polygon
     line_count = 0
     for point in polygon:
-        if test_point[1] >= min(prev_point[1], point[1]) and test_point[1] <= max(prev_point[1], point[1]):  # Check Y coordinate is in range
+        if test_point[1] >= min(prev_point[1], point[1]) and test_point[1] <= max(prev_point[1], point[1]):  # Check if Y coordinate of the test point is in range
             gradient = (point[0]-prev_point[0]) / (point[1]-prev_point[1])                                   # delta_x / delta_y
             line_x = prev_point[0] + (test_point[1]-prev_point[1]) * gradient                                # Calculate X coordinate of a line
             if line_x < test_point[0]:

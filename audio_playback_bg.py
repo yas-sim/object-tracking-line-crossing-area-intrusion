@@ -26,7 +26,7 @@ class audio_playback_bg:
         self.thread.start()
 
     def __del__(self):
-        pass
+        self.terminate_thread()
 
     def terminate_thread(self):
         self.exit_flag = True
