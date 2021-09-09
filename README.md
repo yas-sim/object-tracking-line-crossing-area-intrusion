@@ -69,7 +69,7 @@ The application draws the results on the screen.
 
 ## Simple test program
 `test-line-cross-area-intrusion.py` is a simple test program for line-crossing and area-intrusion detection. You can move mouse cursor to test how it works.  
-![test-prog](./resources/test-program.png)  
+![test-prog](./resources/test-program.gif)  
 
 
 ## Coordinates checker
