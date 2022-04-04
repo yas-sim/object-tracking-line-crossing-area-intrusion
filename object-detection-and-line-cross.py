@@ -7,7 +7,9 @@ from numpy import linalg as LA, true_divide
 import cv2
 from scipy.spatial import distance
 from munkres import Munkres               # Hungarian algorithm for ID assignment
-from openvino.inference_engine import IECore, IENetwork
+
+from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
+from openvino.runtime import AsyncInferQueue, Core, InferRequest, Layout, Type
 
 from line_boundary_check import *
 from audio_playback_bg import *
@@ -203,11 +205,11 @@ class objectTracker:
 
 
 # DL models for pedestrian detection and person re-identification
-model_det  = 'pedestrian-detection-adas-0002'
-model_reid = 'person-reidentification-retail-0277'
+model_det  = 'pedestrian-detection-adas-0002'           # 1,3,384,672 -> 1,1,200,7
+model_reid = 'person-reidentification-retail-0277'      # 1,3,256,128 -> 1,256
 
-model_det  = 'intel/{0}/FP16/{0}'.format(model_det)
-model_reid = 'intel/{0}/FP16/{0}'.format(model_reid)
+model_det  = './intel/{0}/FP16/{0}'.format(model_det)
+model_reid = './intel/{0}/FP16/{0}'.format(model_reid)
 
 # boundary lines
 boundaryLines = [
@@ -226,31 +228,6 @@ def main():
     global audio, audio_enable_flag
     global boundaryLines, areas
     global model_det, model_reid
-    ie = IECore()
-
-    gpu_config = {'CACHE_DIR' : './cache'}
-    # Prep for face/pedestrian detection
-    net_det  = ie.read_network(model_det+'.xml', model_det+'.bin')           # model=pedestrian-detection-adas-0002
-    input_name_det  = next(iter(net_det.input_info))                         # Input blob name "data"
-    input_shape_det = net_det.input_info[input_name_det].tensor_desc.dims    # [1,3,384,672]
-    out_name_det    = next(iter(net_det.outputs))                            # Output blob name "detection_out"
-    out_shape_det   = net_det.outputs[out_name_det].shape                    # [ image_id, label, conf, xmin, ymin, xmax, ymax ]
-    print('Loading', model_det, '...', end='', flush=True)
-    #exec_net_det    = ie.load_network(net_det, 'CPU')
-    exec_net_det    = ie.load_network(net_det, 'GPU', gpu_config)
-    print('Completed')
-
-    # Preparation for face/pedestrian re-identification
-    net_reid = ie.read_network(model_reid+".xml", model_reid+".bin")         # person-reidentificaton-retail-0079
-    input_name_reid  = next(iter(net_reid.input_info))                       # Input blob name "data"
-    input_shape_reid = net_reid.input_info[input_name_reid].tensor_desc.dims # [1,3,160,64]
-    out_name_reid    = next(iter(net_reid.outputs))                          # Output blob name "embd/dim_red/conv"
-    out_shape_reid   = net_reid.outputs[out_name_reid].shape                 # [1,256,1,1]
-    print('Loading', model_reid, '...', end='', flush=True)
-    #exec_net_reid    = ie.load_network(net_reid, 'CPU')
-    exec_net_reid    = ie.load_network(net_reid, 'GPU', gpu_config)
-    print('Completed')
-
 
     # Open USB webcams (or a movie file)
     '''
@@ -261,6 +238,24 @@ def main():
     infile = 'people-detection.264'
     cap = cv2.VideoCapture(infile)
     #'''
+    ret, img = cap.read()
+    ih, iw, _ = img.shape
+
+    core = Core()
+
+    gpu_config = {'CACHE_DIR' : './cache'}
+    # Prep for face/pedestrian detection
+    model_det  = core.read_model(model_det+'.xml')                           # model=pedestrian-detection-adas-0002
+    model_det_shape = model_det.input().get_shape()
+    compiled_model_det    = core.compile_model(model_det, 'CPU')
+    #compiled_model_det    = core.compile_model(model_det, 'GPU', gpu_config)
+
+    # Preparation for face/pedestrian re-identification
+    model_reid = core.read_model(model_reid+'.xml')                          # person-reidentificaton-retail-0079
+    model_reid_shape = model_reid.input().get_shape()
+    compiled_model_reid    = core.compile_model(model_reid, 'CPU')
+    #compiled_model_reid    = core.compile_model(model_reid, 'GPU', gpu_config)
+
 
     tracker = objectTracker()
     try:
@@ -270,11 +265,12 @@ def main():
                 del cap
                 cap = cv2.VideoCapture(infile)
                 continue
-            inBlob = cv2.resize(image, (input_shape_det[_W], input_shape_det[_H]))
-            inBlob = inBlob.transpose((2, 0, 1))
-            inBlob = inBlob.reshape(input_shape_det)
-            detObj = exec_net_det.infer(inputs={input_name_det: inBlob})     # [1,1,200,7]
-            detObj = detObj[out_name_det][0].reshape((200,7))
+            inBlob = cv2.resize(image, (model_det_shape[3], model_det_shape[2]))
+            inBlob = inBlob.transpose((2,0,1))
+            inBlob = inBlob.reshape(list(model_det_shape))
+            detObj = compiled_model_det.infer_new_request({0: inBlob})
+            det_keys = list(detObj.keys())
+            detObj = detObj[det_keys[0]].reshape((200,7))
     
             objects = []
             for obj in detObj:                # obj = [ image_id, label, conf, xmin, ymin, xmax, ymax ]
@@ -288,11 +284,12 @@ def main():
                     obj_img=image[ymin:ymax,xmin:xmax].copy()             # Crop the found object
 
                     # Obtain feature vector of the detected object using re-identification model
-                    inBlob = cv2.resize(obj_img, (input_shape_reid[_W], input_shape_reid[_H]))
-                    inBlob = inBlob.transpose((2, 0, 1))
-                    inBlob = inBlob.reshape(input_shape_reid)
-                    featVec = exec_net_reid.infer(inputs={input_name_reid: inBlob})
-                    featVec = featVec[out_name_reid][0].reshape((256))
+                    inBlob = cv2.resize(obj_img, (model_reid_shape[3], model_reid_shape[2]))
+                    inBlob = inBlob.transpose((2,0,1))
+                    inBlob = inBlob.reshape(model_reid_shape)
+                    featVec = compiled_model_reid.infer_new_request({0: inBlob})
+                    feat_keys = list(featVec.keys())
+                    featVec = featVec[feat_keys[0]].ravel()
                     objects.append(object([xmin,ymin, xmax,ymax], featVec, -1))
 
             outimg = image.copy()

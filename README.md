@@ -11,6 +11,9 @@ You can learn how to use line-crossing and area intrusion function from simple t
 最新版はラインクロスしたりエリア侵入したりなどのイベント発生時にオーディオを再生します。  
 コードを簡素化したテストプログラムも追加しました。ライン交差やエリア侵入判定関数の使い方などを学ぶことが可能です。(`test-line-cross-area-intrusion.py`)  
 
+[ Update - 04-Apr-2022 ] OpenVINO API 2.0 support. Program is now compatible with OpenVINO 2022.1 (and not compatible with OpenVINO 2021 and older ones)  
+
+
 ### Object Tracking and Line Crossing Demo
 ![object-track](./resources/object-track.gif)
 
@@ -77,9 +80,9 @@ You can utilize `coordinates-checker` to get the coordinates of point of interes
 `python coordinates-checker\coordinates-checker.py [image.jpg / movie.mp4 / 0 ]`  
 
 ## Tested Environment  
-- Windows 10 x64 1909 and Ubuntu 18.04 LTS  
-- Intel(r) Distribution of OpenVINO(tm) toolkit 2021.3  
-- Python 3.6.5 x64  
+- Windows 11 x64  
+- Intel(r) Distribution of OpenVINO(tm) toolkit 2022.1  
+- Python 3.7 x64  
 
 ## See Also  
 * [Using Open Model Zoo demos](../../README.md)  
