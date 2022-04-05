@@ -16,7 +16,7 @@ from audio_playback_bg import *
 
 
 # ffmpeg -i input.mp3 -ac 1 -ar 16000 -acodec pcm_s16le output.wav
-audio_enable_flag = True                      # Audio playback function control flag
+audio_enable_flag = False                      # Audio playback function control flag
 
 if audio_enable_flag:
     audio = pyaudio.PyAudio()
@@ -249,13 +249,14 @@ def main():
     model_det_shape = model_det.input().get_shape()
     compiled_model_det    = core.compile_model(model_det, 'CPU')
     #compiled_model_det    = core.compile_model(model_det, 'GPU', gpu_config)
+    ireq_det = compiled_model_det.create_infer_request()
 
     # Preparation for face/pedestrian re-identification
     model_reid = core.read_model(model_reid+'.xml')                          # person-reidentificaton-retail-0079
     model_reid_shape = model_reid.input().get_shape()
     compiled_model_reid    = core.compile_model(model_reid, 'CPU')
     #compiled_model_reid    = core.compile_model(model_reid, 'GPU', gpu_config)
-
+    ireq_reid = compiled_model_reid.create_infer_request()
 
     tracker = objectTracker()
     try:
@@ -268,10 +269,11 @@ def main():
             inBlob = cv2.resize(image, (model_det_shape[3], model_det_shape[2]))
             inBlob = inBlob.transpose((2,0,1))
             inBlob = inBlob.reshape(list(model_det_shape))
-            detObj = compiled_model_det.infer_new_request({0: inBlob})
-            det_keys = list(detObj.keys())
-            detObj = detObj[det_keys[0]].reshape((200,7))
-    
+            res = ireq_det.infer({0: inBlob})
+            # Either one of following way is OK.
+            detObj = ireq_det.get_tensor('detection_out').data.reshape((200,7)) 
+            #detObj = ireq_det.get_tensor(compiled_model_det.output(0)).data.reshape((200,7))
+   
             objects = []
             for obj in detObj:                # obj = [ image_id, label, conf, xmin, ymin, xmax, ymax ]
                 if obj[2] > 0.75:             # Confidence > 75% 
@@ -287,9 +289,8 @@ def main():
                     inBlob = cv2.resize(obj_img, (model_reid_shape[3], model_reid_shape[2]))
                     inBlob = inBlob.transpose((2,0,1))
                     inBlob = inBlob.reshape(model_reid_shape)
-                    featVec = compiled_model_reid.infer_new_request({0: inBlob})
-                    feat_keys = list(featVec.keys())
-                    featVec = featVec[feat_keys[0]].ravel()
+                    res = ireq_reid.infer({0: inBlob})
+                    featVec = ireq_reid.get_tensor(compiled_model_reid.output(0)).data.ravel()
                     objects.append(object([xmin,ymin, xmax,ymax], featVec, -1))
 
             outimg = image.copy()
