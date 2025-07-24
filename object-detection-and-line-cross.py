@@ -1,5 +1,6 @@
 import sys
 import time
+import random
 
 import numpy as np
 from numpy import linalg as LA, true_divide
@@ -8,26 +9,12 @@ import cv2
 from scipy.spatial import distance
 from munkres import Munkres               # Hungarian algorithm for ID assignment
 
-from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
-from openvino.runtime import AsyncInferQueue, Core, InferRequest, Layout, Type
+import openvino as ov
 
 from line_boundary_check import *
-from audio_playback_bg import *
 
-
-# ffmpeg -i input.mp3 -ac 1 -ar 16000 -acodec pcm_s16le output.wav
-audio_enable_flag = False                      # Audio playback function control flag
-
-if audio_enable_flag:
-    audio = pyaudio.PyAudio()
-    wavdir = './data/'
-    sound_thread_thankyou = audio_playback_bg(wavdir+'thankyou.wav', audio)
-    sound_thread_welcome  = audio_playback_bg(wavdir+'welcome.wav', audio)
-    sound_thread_warning  = audio_playback_bg(wavdir+'warning.wav', audio)
-else:
-    audio = wavdir = sound_thread_thankyou = sound_thread_welcome = sound_thread_warning = None
-
-
+num_line_colors = 100
+line_colors = [ [random.randint(64,255), random.randint(64,255), random.randint(64,255)] for _ in range(num_line_colors) ]
 
 class boundaryLine:
     def __init__(self, line=(0,0,0,0)):
@@ -59,8 +46,6 @@ def drawBoundaryLines(img, boundaryLines):
 # in: boundary_line = boundaryLine class object
 #     trajectory   = (x1, y1, x2, y2)
 def checkLineCross(boundary_line, trajectory):
-    global audio_enable_flag
-    global sound_thread_welcome, sound_thread_thankyou
     traj_p0  = (trajectory[0], trajectory[1])    # Trajectory of an object
     traj_p1  = (trajectory[2], trajectory[3])
     bLine_p0 = (boundary_line.p0[0], boundary_line.p0[1]) # Boundary line
@@ -70,12 +55,8 @@ def checkLineCross(boundary_line, trajectory):
         angle = calcVectorAngle(traj_p0, traj_p1, bLine_p0, bLine_p1)   # Calculate angle between trajectory and boundary line
         if angle<180:
             boundary_line.count1 += 1
-            if audio_enable_flag:
-                sound_thread_welcome.play()
         else:
             boundary_line.count2 += 1
-            if audio_enable_flag:
-                sound_thread_thankyou.play()
         #cx, cy = calcIntersectPoint(traj_p0, traj_p1, bLine_p0, bLine_p1) # Calculate the intersect coordination
 
 # Multiple lines cross check
@@ -101,8 +82,6 @@ warning_obj = None
 
 # Area intrusion check
 def checkAreaIntrusion(areas, objects):
-    global audio_enable_flag
-    global sound_thread_warning
     for area in areas:
         area.count = 0
         for obj in objects:
@@ -111,11 +90,6 @@ def checkAreaIntrusion(areas, objects):
             #if cv2.pointPolygonTest(area.contour, (p0, p1), False)>=0:
             if pointPolygonTest(area.contour, (p0, p1)):
                 area.count += 1
-    if audio_enable_flag:
-        if area.count > 0:
-            sound_thread_warning.play()
-        else:
-            sound_thread_warning.stop()
 
 # Draw areas (polygons)
 def drawAreas(img, areas):
@@ -149,6 +123,9 @@ class objectTracker:
 
     def clearDB(self):
         self.objectDB = []
+
+    def set_timeout(self, timeout):
+        self.timeout = timeout
 
     def evictTimeoutObjectFromDB(self):
         # discard time out objects
@@ -197,8 +174,8 @@ class objectTracker:
     def drawTrajectory(self, img, objects):
         for obj in objects:
             if len(obj.trajectory)>1:
-                cv2.polylines(img, np.array([obj.trajectory], np.int32), False, (0,0,0), 4)
-
+                line_col = line_colors[obj.id % num_line_colors]  # Use different color for each object
+                cv2.polylines(img, np.array([obj.trajectory], np.int32), False, line_col, 4)
 
 
 #------------------------------------
@@ -225,7 +202,6 @@ areas = [
 _N, _C, _H, _W = 0, 1, 2, 3
 
 def main():
-    global audio, audio_enable_flag
     global boundaryLines, areas
     global model_det, model_reid
 
@@ -241,24 +217,24 @@ def main():
     ret, img = cap.read()
     ih, iw, _ = img.shape
 
-    core = Core()
-
     gpu_config = {'CACHE_DIR' : './cache'}
     # Prep for face/pedestrian detection
-    model_det  = core.read_model(model_det+'.xml')                           # model=pedestrian-detection-adas-0002
+    model_det  = ov.Core().read_model(model_det+'.xml')                           # model=pedestrian-detection-adas-0002
     model_det_shape = model_det.input().get_shape()
-    compiled_model_det    = core.compile_model(model_det, 'CPU')
-    #compiled_model_det    = core.compile_model(model_det, 'GPU', gpu_config)
+    compiled_model_det    = ov.compile_model(model_det, 'CPU')
+    #compiled_model_det    = ov.compile_model(model_det, 'GPU', gpu_config)
     ireq_det = compiled_model_det.create_infer_request()
 
     # Preparation for face/pedestrian re-identification
-    model_reid = core.read_model(model_reid+'.xml')                          # person-reidentificaton-retail-0079
+    model_reid = ov.Core().read_model(model_reid+'.xml')                          # person-reidentificaton-retail-0079
     model_reid_shape = model_reid.input().get_shape()
-    compiled_model_reid    = core.compile_model(model_reid, 'CPU')
-    #compiled_model_reid    = core.compile_model(model_reid, 'GPU', gpu_config)
+    compiled_model_reid    = ov.compile_model(model_reid, 'CPU')
+    #compiled_model_reid    = ov.compile_model(model_reid, 'GPU', gpu_config)
     ireq_reid = compiled_model_reid.create_infer_request()
 
     tracker = objectTracker()
+    tracker.set_timeout(10)  # Set timeout for object tracking
+
     try:
         while cv2.waitKey(1)!=27:           # 27 == ESC
             ret, image = cap.read()
@@ -290,7 +266,7 @@ def main():
                     inBlob = inBlob.transpose((2,0,1))
                     inBlob = inBlob.reshape(model_reid_shape)
                     res = ireq_reid.infer({0: inBlob})
-                    featVec = ireq_reid.get_tensor(compiled_model_reid.output(0)).data.ravel()
+                    featVec = res[0][0].ravel()  # Get the feature vector of the object
                     objects.append(object([xmin,ymin, xmax,ymax], featVec, -1))
 
             outimg = image.copy()
@@ -318,11 +294,6 @@ def main():
         pass
 
     cv2.destroyAllWindows()
-    if audio_enable_flag:
-        sound_thread_thankyou.terminate_thread()
-        sound_thread_warning.terminate_thread()
-        sound_thread_welcome.terminate_thread()
-        audio.terminate()
 
 if __name__ == '__main__':
     sys.exit(main() or 0)
