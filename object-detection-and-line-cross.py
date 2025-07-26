@@ -2,6 +2,8 @@ import sys
 import time
 import random
 
+import yaml
+
 import numpy as np
 from numpy import linalg as LA, true_divide
 
@@ -16,10 +18,10 @@ from line_boundary_check import *
 num_line_colors = 100
 line_colors = [ [random.randint(64,255), random.randint(64,255), random.randint(64,255)] for _ in range(num_line_colors) ]
 
-class boundaryLine:
-    def __init__(self, line=(0,0,0,0)):
-        self.p0 = (line[0], line[1])
-        self.p1 = (line[2], line[3])
+class BoundaryLine:
+    def __init__(self, p0=(0,0), p1=(0,0)):
+        self.p0 = p0
+        self.p1 = p1
         self.color = (0,255,255)
         self.lineThinkness = 4
         self.textColor = (0,255,255)
@@ -72,7 +74,7 @@ def checkLineCrosses(boundaryLines, objects):
 
 #------------------------------------
 # Area intrusion detection
-class area:
+class Area:
     def __init__(self, contour):
         self.contour  = np.array(contour, dtype=np.int32)
         self.count    = 0
@@ -85,8 +87,8 @@ def checkAreaIntrusion(areas, objects):
     for area in areas:
         area.count = 0
         for obj in objects:
-            p0 = (obj.pos[0]+obj.pos[2])//2
-            p1 = (obj.pos[1]+obj.pos[3])//2
+            p0 = (obj.pos[0] + obj.pos[2])//2
+            p1 = (obj.pos[1] + obj.pos[3])//2
             #if cv2.pointPolygonTest(area.contour, (p0, p1), False)>=0:
             if pointPolygonTest(area.contour, (p0, p1)):
                 area.count += 1
@@ -94,12 +96,13 @@ def checkAreaIntrusion(areas, objects):
 # Draw areas (polygons)
 def drawAreas(img, areas):
     for area in areas:
-        if area.count>0:
-            color=(0,0,255)
+        if area.count > 0:
+            color = (0,0,255)
         else:
-            color=(255,0,0)
+            color = (255,0,0)
         cv2.polylines(img, [area.contour], True, color,4)
-        cv2.putText(img, str(area.count), (area.contour[0][0], area.contour[0][1]), cv2.FONT_HERSHEY_PLAIN, 4, color, 2)
+        cx, cy = np.mean(area.contour, axis=0).astype(int)
+        cv2.putText(img, str(area.count), (cx, cy), cv2.FONT_HERSHEY_PLAIN, 4, color, 2)
 
 
 #------------------------------------
@@ -188,16 +191,17 @@ model_reid = 'person-reidentification-retail-0277'      # 1,3,256,128 -> 1,256
 model_det  = './intel/{0}/FP16/{0}'.format(model_det)
 model_reid = './intel/{0}/FP16/{0}'.format(model_reid)
 
-# boundary lines
-boundaryLines = [
-    boundaryLine([ 300,  40,  20, 400 ]),
-    boundaryLine([ 440,  40, 700, 400 ])
-]  
-
-# Areas
-areas = [
-    area([ [200,200], [500,180], [600,400], [300,300], [100,360] ])
-]
+# Load boundary lines and areas from config
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+boundaryLines = []
+areas = []
+print(config)
+for item in config:
+    if item['type'] == 'wire':
+        boundaryLines.append(BoundaryLine(item['points'][0], item['points'][1]))
+    elif item['type'] == 'area':
+        areas.append(Area(item['points']))
 
 _N, _C, _H, _W = 0, 1, 2, 3
 
