@@ -44,7 +44,7 @@ def draw(img, results):
 
 def usage():
     print("Usage: python draw_events.py")
-    print("Left click to add points, right click to finalize area or wire segment.")
+    print("Left click to add points, right click or Enter key to finalize area or wire segment.")
     print("Press Backspace to remove the last point.")
     print("Press ESC to exit and save the configuration to config.yaml.")
 
@@ -81,8 +81,9 @@ def main():
             points.append([mouse_status.x, mouse_status.y])
             print(f"Point added: {mouse_status.x}, {mouse_status.y}")
 
-        if mouse_status.rb_clk:
+        if mouse_status.rb_clk or key == 13:  # 13 is the Enter key
             mouse_status.rb_clk = False
+            key = 0
             if len(points) == 2:
                 obj = {'type': 'wire', 'points': points.copy()}
                 items.append(obj)

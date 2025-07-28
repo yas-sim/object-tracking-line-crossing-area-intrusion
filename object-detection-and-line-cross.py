@@ -196,7 +196,6 @@ with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 boundaryLines = []
 areas = []
-print(config)
 for item in config:
     if item['type'] == 'wire':
         boundaryLines.append(BoundaryLine(item['points'][0], item['points'][1]))
@@ -221,23 +220,30 @@ def main():
     ret, img = cap.read()
     ih, iw, _ = img.shape
 
-    gpu_config = {'CACHE_DIR' : './cache'}
+    # Device name could be 'CPU', 'GPU', 'GPU.0', 'NPU', etc.
+    device_det = 'CPU'
+    device_reid = 'CPU'
+
+    ov_config = {'CACHE_DIR' : './cache'}
     # Prep for face/pedestrian detection
-    model_det  = ov.Core().read_model(model_det+'.xml')                           # model=pedestrian-detection-adas-0002
+    model_det  = ov.Core().read_model(model_det+'.xml')         # model=pedestrian-detection-adas-0002
     model_det_shape = model_det.input().get_shape()
-    compiled_model_det    = ov.compile_model(model_det, 'CPU')
-    #compiled_model_det    = ov.compile_model(model_det, 'GPU', gpu_config)
+    compiled_model_det    = ov.compile_model(model_det, device_det, ov_config)
     ireq_det = compiled_model_det.create_infer_request()
 
     # Preparation for face/pedestrian re-identification
-    model_reid = ov.Core().read_model(model_reid+'.xml')                          # person-reidentificaton-retail-0079
+    model_reid = ov.Core().read_model(model_reid+'.xml')        # person-reidentificaton-retail-0079
     model_reid_shape = model_reid.input().get_shape()
-    compiled_model_reid    = ov.compile_model(model_reid, 'CPU')
-    #compiled_model_reid    = ov.compile_model(model_reid, 'GPU', gpu_config)
+    compiled_model_reid    = ov.compile_model(model_reid, device_reid, ov_config)
     ireq_reid = compiled_model_reid.create_infer_request()
 
     tracker = objectTracker()
     tracker.set_timeout(10)  # Set timeout for object tracking
+
+    fps = 0
+    fps_count = 10
+    loop_count = 0
+    start_time = time.perf_counter()
 
     try:
         while cv2.waitKey(1)!=27:           # 27 == ESC
@@ -250,9 +256,7 @@ def main():
             inBlob = inBlob.transpose((2,0,1))
             inBlob = inBlob.reshape(list(model_det_shape))
             res = ireq_det.infer({0: inBlob})
-            # Either one of following way is OK.
             detObj = ireq_det.get_tensor('detection_out').data.reshape((200,7)) 
-            #detObj = ireq_det.get_tensor(compiled_model_det.output(0)).data.reshape((200,7))
    
             objects = []
             for obj in detObj:                # obj = [ image_id, label, conf, xmin, ymin, xmax, ymax ]
@@ -291,7 +295,19 @@ def main():
                 color = ( (((~id)<<6) & 0x100)-1, (((~id)<<7) & 0x0100)-1, (((~id)<<8) & 0x0100)-1 )
                 xmin, ymin, xmax, ymax = obj.pos
                 cv2.rectangle(outimg, (xmin, ymin), (xmax, ymax), color, 2)
-                cv2.putText(outimg, 'ID='+str(id), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 1.0, color, 1)
+                cv2.putText(outimg, 'ID='+str(id), (xmin, ymin - 7), cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2)
+
+            # Calculate and Draw FPS
+            loop_count += 1
+            if loop_count % fps_count == 0:
+                end_time = time.perf_counter()
+                fps = fps_count / (end_time - start_time)
+                start_time = end_time
+            out_msg = f'FPS: {fps:.2f} Det={device_det}, ReID={device_reid}'
+            cv2.putText(outimg, out_msg, (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 6)
+            cv2.putText(outimg, out_msg, (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            outimg = cv2.resize(outimg, (0, 0), fx=2.0, fy=2.0)
 
             cv2.imshow('image', outimg)
     except KeyboardInterrupt:
